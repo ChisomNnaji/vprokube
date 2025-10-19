@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vproapp
+  labels:
+    app: vproapp
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: vproapp
+  template:
+    metadata:
+      labels:
+        app: vproapp
+    spec:
+      # initContainers must live here
+      initContainers:
+      - name: init-mydb
+        image: busybox
+        command: ['sh', '-c', "until nslookup vprodb.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for mydb; sleep 2; done"]
+
+      - name: init-myrmq
+        image: busybox
+        command: ['sh', '-c', "until nslookup vpromq01.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for rmq; sleep 2; done"]
+
+      # main container starts after init containers finish
+      containers:
+      - name: vproapp
+        image: chisomnnaji/vprofileapp  # my image
+        ports:
+        - name: vproapp-port
+          containerPort: 8080
